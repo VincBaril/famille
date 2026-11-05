@@ -15,19 +15,19 @@
 export const CONFIG = {
   // Collez ici l'objet « firebaseConfig » de votre projet Firebase
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyAmmQr4JwYFtHHlDdrODa3H_M2fNqXvGEo",
+    authDomain: "famille-c60b1.firebaseapp.com",
+    projectId: "famille-c60b1",
+    storageBucket: "famille-c60b1.firebasestorage.app",
+    messagingSenderId: "366071347860",
+    appId: "1:366071347860:web:a75d4fa61fdcc72335d281"
   },
 
   // Courriel du compte commun créé dans Firebase Authentication.
   // Ce n'est PAS le code d'accès : c'est seulement le « nom du compte ».
   // Utilisez une vraie adresse à vous : elle permet de réinitialiser
   // le code en cas d'oubli. Doit être identique à celle de firestore.rules.
-  courrielFoyer: "courriel-du-foyer@exemple.com",
+  courrielFoyer: "vinc.baril@gmail.com",
 
   // Identifiant du foyer dans la base de données (laisser tel quel)
   foyerId: "principal",
