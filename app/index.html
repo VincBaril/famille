@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FAMILLE</title>
+  <meta name="description" content="Organisation de la maison : épicerie, tâches, menu, rendez-vous et notes.">
+  <meta name="theme-color" content="#3F6B4E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="FAMILLE">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="demarrage" class="demarrage">
+    <img src="icons/icon-192.png" alt="" width="96" height="96">
+    <p>FAMILLE</p>
+  </div>
+
+  <!-- Écran de connexion -->
+  <section id="ecran-connexion" class="ecran-connexion" hidden></section>
+
+  <!-- Application -->
+  <div id="app" class="app" hidden>
+    <header class="entete">
+      <div class="entete-titre">
+        <span class="logo-mini" aria-hidden="true"></span>
+        <h1>FAMILLE</h1>
+      </div>
+      <div class="entete-actions">
+        <button id="etat-sync" class="etat-sync" type="button" aria-label="État de la synchronisation"><span class="point"></span><span class="etiquette">Synchronisé</span></button>
+        <a href="#/reglages" class="bouton-icone" aria-label="Réglages" data-icone="reglages"></a>
+      </div>
+    </header>
+    <div id="bandeau-hors-ligne" class="bandeau-hors-ligne" hidden>Hors ligne — vos modifications seront synchronisées au retour de la connexion.</div>
+    <main id="contenu" class="contenu" tabindex="-1"></main>
+    <nav class="navigation" aria-label="Navigation principale">
+      <a href="#/accueil" data-route="accueil"><span data-icone="accueil"></span><span>Accueil</span></a>
+      <a href="#/epicerie" data-route="epicerie"><span data-icone="epicerie"></span><span>Épicerie</span><b class="pastille" id="pastille-epicerie" hidden></b></a>
+      <a href="#/taches" data-route="taches"><span data-icone="taches"></span><span>Tâches</span></a>
+      <a href="#/menu" data-route="menu"><span data-icone="menu"></span><span>Menu</span></a>
+      <a href="#/agenda" data-route="agenda"><span data-icone="agenda"></span><span>Agenda</span></a>
+      <a href="#/notes" data-route="notes"><span data-icone="notes"></span><span>Notes</span></a>
+    </nav>
+  </div>
+
+  <div id="couche-feuilles"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <noscript>L'application FAMILLE nécessite JavaScript.</noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

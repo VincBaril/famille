@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// =========================================================
+// FAMILLE — règles de sécurité Firestore
+// Seul le compte commun du foyer peut lire et écrire.
+// ⚠️ Remplacez le courriel ci-dessous par celui de votre compte
+//    (le même que « courrielFoyer » dans app/js/config.js).
+//    Pour ajouter un utilisateur plus tard : créez son compte dans
+//    Authentication et ajoutez son courriel à la liste.
+// =========================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estMembre() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'courriel-du-foyer@exemple.com'
+        ];
+    }
+
+    function collectionPermise(col) {
+      return col in ['epicerie', 'taches', 'historique', 'repas', 'recettes', 'photos',
+                     'rendezvous', 'notes', 'personnes', 'reglages', 'appareils'];
+    }
+
+    // Protection contre les documents démesurés
+    function tailleRaisonnable() {
+      return request.resource.data.keys().size() <= 40;
+    }
+
+    match /foyers/{foyerId}/{col}/{docId} {
+      allow read: if estMembre() && collectionPermise(col);
+
+      allow create: if estMembre() && collectionPermise(col) && tailleRaisonnable();
+
+      // L'historique des tâches terminées est permanent : ni modifié, ni supprimé.
+      allow update: if estMembre() && collectionPermise(col) && col != 'historique' && tailleRaisonnable();
+      allow delete: if estMembre() && collectionPermise(col) && col != 'historique';
+    }
+
+    // Tout le reste est refusé.
+  }
+}

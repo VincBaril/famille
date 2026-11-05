@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clés VAPID — FAMILLE</title>
+<style>
+  body{font-family:system-ui,Roboto,sans-serif;background:#F6F1E7;color:#2F3431;max-width:640px;margin:0 auto;padding:24px 16px;line-height:1.5}
+  h1{color:#3F6B4E;font-size:24px} .carte{background:#fff;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  button{background:#3F6B4E;color:#fff;border:0;border-radius:12px;padding:14px 20px;font-size:16px;font-weight:700;cursor:pointer}
+  textarea{width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:13px;padding:10px;border-radius:10px;border:1.5px solid #E6DFD1;min-height:70px}
+  .alerte{background:#FBF0DA;border-radius:12px;padding:10px 12px;font-size:14px}
+</style>
+</head>
+<body>
+<h1>Générer les clés de notification (VAPID)</h1>
+<p>Cette page crée une paire de clés <b>directement dans votre navigateur</b>. Rien n'est envoyé sur Internet.
+Ouvrez ce fichier sur votre ordinateur (double-clic), puis cliquez sur le bouton.</p>
+<button id="b">Générer les clés</button>
+<div id="r" hidden>
+  <div class="carte"><b>Clé publique</b> — à coller dans <code>app/js/config.js</code> (vapidPublicKey) <u>et</u> dans le secret GitHub <code>VAPID_PUBLIC_KEY</code>
+    <textarea id="pub" readonly></textarea></div>
+  <div class="carte"><b>Clé privée</b> — à coller <u>seulement</u> dans le secret GitHub <code>VAPID_PRIVATE_KEY</code>
+    <textarea id="priv" readonly></textarea>
+    <p class="alerte">Ne mettez jamais la clé privée dans le code de l'application. Gardez-la secrète.</p></div>
+</div>
+<script>
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+document.getElementById("b").onclick = async () => {
+  const k = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pub = await crypto.subtle.exportKey("raw", k.publicKey);
+  const jwk = await crypto.subtle.exportKey("jwk", k.privateKey);
+  document.getElementById("pub").value = b64u(pub);
+  document.getElementById("priv").value = jwk.d;
+  document.getElementById("r").hidden = false;
+};
+</script>
+</body>
+</html>

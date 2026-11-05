@@ -1,0 +1,16 @@
+{
+  "name": "famille-notifier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Envoie les rappels de l'application FAMILLE (exécuté gratuitement par GitHub Actions).",
+  "main": "envoyer-rappels.js",
+  "scripts": {
+    "start": "node envoyer-rappels.js",
+    "test": "node test-logique.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "web-push": "^3.6.7"
+  }
+}
