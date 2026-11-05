@@ -1,0 +1,52 @@
+name: Rappels FAMILLE
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rappels
+  cancel-in-progress: false
+
+jobs:
+  envoyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: notifier
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installer les dépendances
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: Envoyer les rappels
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CONTACT: ${{ secrets.VAPID_CONTACT }}
+          FUSEAU: ${{ vars.FUSEAU || 'America/Toronto' }}
+          HEURE_RESUME: ${{ vars.HEURE_RESUME || '7' }}
+        run: node envoyer-rappels.js
+
+      - name: Maintenir les rappels actifs
+        if: github.event_name == 'schedule'
+        working-directory: .
+        run: |
+          derniere=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - derniere )) -gt 3888000 ]; then
+            git config user.name "famille-rappels"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Maintien des rappels automatiques"
+            git push
+          fi
