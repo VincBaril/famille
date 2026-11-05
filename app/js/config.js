@@ -33,7 +33,7 @@ export const CONFIG = {
   foyerId: "principal",
 
   // Clé publique VAPID pour les notifications (README, étape 5)
-  vapidPublicKey: ""
+  vapidPublicKey: "BDDeAiCI45jfMqhR-V-FRrsPb4EyDCS-Wt4eOS57gFmbsgA32asFrtdL1uaf_oyP3gNygpYgn9P_hkITo_-09U8"
 };
 
 export const MODE_DEMO = !CONFIG.firebase.apiKey;
