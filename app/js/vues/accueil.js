@@ -1,7 +1,7 @@
 /* =========================================================
    TABLEAU DE BORD — la journée en un coup d'œil
    ========================================================= */
-import { etat, moi, nomResponsable } from "../etat.js";
+import { etat, db, moi, nomResponsable } from "../etat.js";
 import { icone } from "../icones.js";
 import { esc, aujourdhui, ajouterJours, jourSemaine, dateLongue, relatif, heure, dateCourte } from "../utils.js";
 import { repasDu, recette, ingredientsDuRepas, ouvrirFormRepas } from "./menu.js";
@@ -9,6 +9,10 @@ import { ligneTache, basculerTache, ouvrirFormTache, trierTaches } from "./tache
 import { prochainsRdv, ouvrirFormRdv } from "./agenda.js";
 import { articlesAAcheter, ouvrirImportIngredients } from "./epicerie.js";
 import { notesTriees, ouvrirFormNote } from "./notes.js";
+
+// Photo du souper gardée en mémoire : l'accueil se redessine souvent,
+// on évite de la recharger (et de la faire clignoter) à chaque fois.
+let cachePhoto = { cle: null, data: null };
 
 function salutation() {
   const h = new Date().getHours();
@@ -25,12 +29,13 @@ export const vue = {
     const r = repasDu(auj);
     const rec = r?.recetteId ? recette(r.recetteId) : null;
     const ingr = ingredientsDuRepas(r);
+    const photo = rec && (rec.aPhoto || rec.vignette);
     const carteSouper = `<section class="carte repas-du-jour" aria-label="Menu du souper">
+      ${photo ? `<img class="photo-souper" data-photo-souper="${rec.id}" ${rec.vignette ? `src="${rec.vignette}"` : ""} alt="Photo : ${esc(rec.nom)}">` : ""}
       <div class="carte-entete"><div class="icone-ronde">${icone("menu")}</div><h3>Souper ce soir</h3>
         <a class="lien" href="#/menu">Semaine</a></div>
       ${r ? `<div class="nom-repas">${esc(r.nom)}</div>
         ${r.description ? `<div class="muet">${esc(r.description)}</div>` : ""}
-        ${ingr.length ? `<ul class="liste-ingredients">${ingr.map((i) => `<li>${esc(i.nom)}${i.quantite ? ` <b>${esc(i.quantite)}</b>` : ""}</li>`).join("")}</ul>` : ""}
         ${r.commentaires ? `<p class="petit muet" style="margin:10px 0 0">💬 ${esc(r.commentaires)}</p>` : ""}
         <div class="rangee-boutons">
           ${rec ? `<a class="bouton secondaire petit" href="#/recette/${rec.id}">${icone("livre")} Recette</a>` : ""}
@@ -101,6 +106,20 @@ export const vue = {
         <div class="date">${dateLongue(auj)}</div>
       </div>
       ${carteSouper}${carteTaches}${carteRdv}${carteEpicerie}${carteNotes}`;
+  },
+  apresRendu(el) {
+    const img = el.querySelector("[data-photo-souper]");
+    if (!img) return;
+    const rec = recette(img.dataset.photoSouper);
+    if (!rec?.aPhoto) return;
+    const cle = rec.id + ":" + (rec.modifieLe || 0);
+    if (cachePhoto.cle === cle) { img.src = cachePhoto.data; return; }
+    db().lire("photos", rec.id).then((p) => {
+      if (!p?.data) return;
+      cachePhoto = { cle, data: p.data };
+      const actuelle = document.querySelector(`[data-photo-souper="${rec.id}"]`);
+      if (actuelle) actuelle.src = p.data;
+    });
   },
   monter(el) {
     el.addEventListener("click", (e) => {
