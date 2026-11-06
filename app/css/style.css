@@ -383,8 +383,13 @@ h3.section .compte { background: var(--beige-2); border-radius: 99px; padding: 0
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
+/* Photo du souper : vignette à droite du nom du repas */
+.repas-du-jour:has(.photo-souper) { display: grid; grid-template-columns: 1fr 45%; column-gap: 14px; align-items: start; }
+.repas-du-jour:has(.photo-souper) > * { grid-column: 1 / -1; }
+.repas-du-jour:has(.photo-souper) > .nom-repas,
+.repas-du-jour:has(.photo-souper) > .muet { grid-column: 1; }
 .photo-souper {
-  display: block; width: calc(100% + 32px); margin: -16px -16px 14px;
-  aspect-ratio: 16 / 9; object-fit: cover; background: var(--vert-pale);
-  border-radius: var(--rayon) var(--rayon) 0 0;
+  grid-column: 2 !important; grid-row: 2 / span 3;
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: 14px; background: var(--vert-pale); margin-bottom: 10px;
 }
