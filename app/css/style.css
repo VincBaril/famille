@@ -382,3 +382,9 @@ h3.section .compte { background: var(--beige-2); border-radius: 99px; padding: 0
 .couleurs label input:checked + span { border-color: var(--texte); }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+.photo-souper {
+  display: block; width: calc(100% + 32px); margin: -16px -16px 14px;
+  aspect-ratio: 16 / 9; object-fit: cover; background: var(--vert-pale);
+  border-radius: var(--rayon) var(--rayon) 0 0;
+}
