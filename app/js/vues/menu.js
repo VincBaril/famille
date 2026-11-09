@@ -8,6 +8,18 @@ import { esc, aujourdhui, ajouterJours, debutSemaine, dateDe, jourCourt, jourMoi
 import { ouvrirImportIngredients } from "./epicerie.js";
 
 let onglet = "semaine";
+
+/** Nettoie un lien de recette : ajoute https:// au besoin, refuse tout sauf http/https */
+function nettoyerLien(texte) {
+  let t = String(texte || "").trim();
+  if (!t) return "";
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = "https://" + t;
+  try {
+    const u = new URL(t);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch { return null; }
+}
+
 let semaine = null;
 let recherche = "";
 
@@ -79,7 +91,7 @@ export function ouvrirFormRepas(date) {
 /* ---------- Formulaire d'une recette ---------- */
 export function ouvrirFormRecette(id) {
   const r = id ? recette(id) : null;
-  const v = r || { nom: "", description: "", ingredients: [], instructions: "", tempsPrep: "", portions: "" };
+  const v = r || { nom: "", description: "", ingredients: [], instructions: "", tempsPrep: "", portions: "", lien: "" };
   let photo = undefined;      // undefined = inchangée, null = retirée, string = nouvelle
   let vignette = undefined;
   const { el, fermer } = ouvrirFeuille({
@@ -92,7 +104,8 @@ export function ouvrirFormRecette(id) {
         <label class="champ"><span>Portions</span><input type="number" inputmode="numeric" min="1" max="99" name="portions" value="${esc(v.portions)}"></label>
       </div>
       ${htmlEditeurIngredients(v.ingredients || [])}
-      <label class="champ" style="margin-top:14px"><span>Instructions de préparation</span><textarea name="instructions" maxlength="8000" style="min-height:160px" placeholder="1. Préchauffer le four…">${esc(v.instructions)}</textarea></label>
+      <label class="champ" style="margin-top:14px"><span>Lien vers la recette (facultatif)</span><input type="text" name="lien" inputmode="url" autocapitalize="off" spellcheck="false" maxlength="500" value="${esc(v.lien || "")}" placeholder="Ex. : https://www.ricardocuisine.com/…"></label>
+      <label class="champ"><span>Instructions de préparation</span><textarea name="instructions" maxlength="8000" style="min-height:160px" placeholder="1. Préchauffer le four…">${esc(v.instructions)}</textarea></label>
       <div class="champ"><span class="libelle">Photo (facultatif)</span>
         <img data-apercu class="photo-recette" alt="" ${r?.vignette ? `src="${r.vignette}"` : "hidden"}>
         <div class="rangee-boutons" style="margin-top:0">
@@ -125,8 +138,10 @@ export function ouvrirFormRecette(id) {
     e.preventDefault();
     const d = valeursFormulaire(form);
     if (!d.nom) return;
+    const lien = nettoyerLien(d.lien);
+    if (lien === null) { toast("Ce lien n'est pas valide. Il doit commencer par https://"); form.querySelector("[name=lien]").focus(); return; }
     const donnees = {
-      nom: d.nom, description: d.description || "", ingredients: lireIngredients(form), instructions: d.instructions || "",
+      nom: d.nom, description: d.description || "", lien, ingredients: lireIngredients(form), instructions: d.instructions || "",
       tempsPrep: d.tempsPrep ? Number(d.tempsPrep) : "", portions: d.portions ? Number(d.portions) : "", modifieLe: Date.now()
     };
     if (photo !== undefined) { donnees.aPhoto = !!photo; donnees.vignette = vignette || null; }
@@ -265,6 +280,7 @@ export const vueRecette = {
         ${r.portions ? `<span class="puce vert">${icone("portions")} ${r.portions} portions</span>` : ""}
       </div>
       ${r.description ? `<p style="margin-top:0">${esc(r.description)}</p>` : ""}
+      ${r.lien ? `<a class="bouton secondaire large" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer" style="margin-bottom:10px">${icone("livre")} Voir la recette en ligne</a>` : ""}
       <div class="rangee-boutons" style="margin-bottom:14px">
         <button type="button" class="bouton" data-recette-epicerie>${icone("ajoutPanier")} Ajouter les ingrédients à l'épicerie</button>
         <button type="button" class="bouton secondaire" data-planifier>${icone("agenda")} Planifier un souper</button>
