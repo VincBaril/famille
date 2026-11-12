@@ -75,4 +75,11 @@ t("avant l'heure du résumé → pas de résumé", () => {
   assert.strictEqual(r.envois.length, 0);
 });
 
+t("rendez-vous Outlook masqué (doublon d'un rendez-vous FAMILLE) → pas de rappel en double", () => {
+  const r = calculerEnvois({ ...base, reglages: { dernierResume: "2026-11-05" }, rendezvous: [
+    { id: "o1", source: "outlook", masque: true, titre: "Dentiste", date: "2026-11-05", heureDebut: "14:00", personne: "p1", rappelA: maintenant - M, debutA: maintenant + H, rappelEnvoye: false }] });
+  assert.strictEqual(r.envois.length, 0);
+  assert.deepStrictEqual(r.majs, [{ col: "rendezvous", id: "o1", data: { rappelEnvoye: true } }]);
+});
+
 console.log(`\n${n} tests réussis`);

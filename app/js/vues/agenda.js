@@ -1,27 +1,55 @@
 /* =========================================================
    MODULE RENDEZ-VOUS — calendrier commun (jour / semaine / mois)
    ========================================================= */
-import { etat, db, moi } from "../etat.js";
+import { etat, db, moi, nomResponsable } from "../etat.js";
 import { icone } from "../icones.js";
 import { ouvrirFeuille, confirmer, toast, valeursFormulaire } from "../ui.js";
-import { esc, majuscule, aujourdhui, ajouterJours, ajouterMois, debutSemaine, dateDe, iso, heure, horodatage, dateMoyenne, jourMois, moisAnnee, jourCourt, lienCarte } from "../utils.js";
+import { esc, majuscule, normaliser, aujourdhui, ajouterJours, ajouterMois, debutSemaine, dateDe, iso, heure, horodatage, dateMoyenne, jourMois, moisAnnee, jourCourt, lienCarte } from "../utils.js";
 import { pucePersonne, choixPersonne, RAPPELS_RDV, selectRappel, libelleRappel } from "./commun.js";
 
 let mode = "semaine";
 let dateSel = null;
 
 const trier = (a, b) => (a.date + (a.heureDebut || "")).localeCompare(b.date + (b.heureDebut || ""));
-export const rdvDu = (d) => etat.rendezvous.filter((r) => r.date === d).sort(trier);
+const cleRdv = (r) => `${normaliser(r.titre)}|${r.date}|${r.heureDebut || "journee"}`;
+/** Rendez-vous affichés : un rendez-vous Outlook identique (même titre, date et heure)
+    à un rendez-vous entré dans FAMILLE est caché pour éviter les doublons. */
+export function rdvVisibles() {
+  const manuels = new Set(etat.rendezvous.filter((r) => r.source !== "outlook").map(cleRdv));
+  return etat.rendezvous.filter((r) => r.source !== "outlook" || !manuels.has(cleRdv(r)));
+}
+export const rdvDu = (d) => rdvVisibles().filter((r) => r.date === d).sort(trier);
+export const heureRdv = (r) => (r.journee || !r.heureDebut ? "Journée" : heure(r.heureDebut));
+const PUCE_OUTLOOK = `<span class="puce" style="background:#E3ECF5;color:#2F5D86">Outlook</span>`;
 /** Rendez-vous à venir (pas encore commencés, ou en cours aujourd'hui) */
 export function prochainsRdv(n = 3) {
   const maintenant = Date.now();
-  return etat.rendezvous
+  return rdvVisibles()
     .filter((r) => (r.finA || r.debutA || 0) >= maintenant - 15 * 60000 || (r.date === aujourdhui() && !r.heureDebut))
     .sort(trier).slice(0, n);
 }
 
+/** Rendez-vous venant d'Outlook : affichage seulement */
+function ouvrirDetailOutlook(r) {
+  const qui = r.personne === "tous" ? "de vos deux calendriers Outlook" : `du calendrier Outlook de ${esc(nomResponsable(r.personne))}`;
+  const { el, fermer } = ouvrirFeuille({
+    titre: "Rendez-vous Outlook",
+    contenu: `<div class="carte">
+        <p style="margin:0;font-size:20px;font-weight:800">${esc(r.titre)}</p>
+        <p style="margin:6px 0 0">${esc(majuscule(dateMoyenne(r.date)))}${r.journee || !r.heureDebut ? " · toute la journée" : ` · ${heure(r.heureDebut)}${r.heureFin ? ` à ${heure(r.heureFin)}` : ""}`}</p>
+        <div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${pucePersonne(r.personne)} ${PUCE_OUTLOOK}
+          ${r.rappel !== null && r.rappel !== undefined ? `<span class="puce">${icone("cloche")} ${esc(libelleRappel(RAPPELS_RDV, r.rappel) || r.rappel + " min avant")}</span>` : ""}</div>
+        ${r.adresse ? `<a class="adresse" style="display:inline-flex;gap:4px;margin-top:10px" href="${lienCarte(r.adresse)}" target="_blank" rel="noopener">${icone("lieu")} ${esc(r.adresse)}</a>` : ""}
+      </div>
+      <p class="petit muet">Ce rendez-vous vient ${qui}. Pour le modifier ou le supprimer, utilisez Outlook : FAMILLE se mettra à jour automatiquement (délai possible de 30 minutes ou plus).</p>`,
+    actions: `<button type="button" class="bouton" data-ok>OK</button>`
+  });
+  el.querySelector("[data-ok]").onclick = fermer;
+}
+
 export function ouvrirFormRdv(id, dateDefaut) {
   const r = id ? etat.rendezvous.find((x) => x.id === id) : null;
+  if (r?.source === "outlook") return ouvrirDetailOutlook(r);
   const v = r || { titre: "", description: "", date: dateDefaut || aujourdhui(), heureDebut: "", heureFin: "", adresse: "", personne: moi() || "tous", notes: "", rappel: 60, important: false };
   const { el, fermer } = ouvrirFeuille({
     titre: r ? "Modifier le rendez-vous" : "Nouveau rendez-vous",
@@ -71,10 +99,10 @@ export function ouvrirFormRdv(id, dateDefaut) {
 
 export function ligneRdv(r) {
   return `<div class="rdv" data-ouvrir-rdv="${r.id}" role="button" tabindex="0">
-    <div class="heure">${heure(r.heureDebut)}${r.heureFin ? `<small>à ${heure(r.heureFin)}</small>` : ""}</div>
+    <div class="heure">${r.journee || !r.heureDebut ? `<span style="font-size:14px">Journée</span>` : heure(r.heureDebut)}${r.heureFin && !r.journee ? `<small>à ${heure(r.heureFin)}</small>` : ""}</div>
     <div class="corps">
       <div class="titre">${r.important ? `<span style="color:var(--ambre)">${icone("etoile")}</span> ` : ""}${esc(r.titre)}</div>
-      <div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${pucePersonne(r.personne)}
+      <div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${pucePersonne(r.personne)}${r.source === "outlook" ? PUCE_OUTLOOK : ""}
         ${r.rappel !== null && r.rappel !== undefined ? `<span class="puce">${icone("cloche")} ${esc(libelleRappel(RAPPELS_RDV, r.rappel))}</span>` : ""}</div>
       ${r.description ? `<div class="desc">${esc(r.description)}</div>` : ""}
       ${r.adresse ? `<a class="adresse" href="${lienCarte(r.adresse)}" target="_blank" rel="noopener" data-lien>${icone("lieu")} ${esc(r.adresse)}</a>` : ""}

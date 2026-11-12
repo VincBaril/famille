@@ -9,18 +9,77 @@
      FOYER_ID                  (facultatif) « principal » par défaut
      FUSEAU                    (facultatif) « America/Toronto » par défaut
      HEURE_RESUME              (facultatif) heure du résumé du matin, 7 par défaut
+     CALENDRIER_PERSONNE_1     (facultatif) lien ICS publié du calendrier Outlook de la personne 1
+     CALENDRIER_PERSONNE_2     (facultatif) lien ICS publié du calendrier Outlook de la personne 2
+     RAPPEL_OUTLOOK            (facultatif) minutes avant un rendez-vous Outlook (60 par défaut, « aucun » pour désactiver)
+     SYNC_OUTLOOK_MINUTES      (facultatif) fréquence de lecture des calendriers Outlook, 30 par défaut
+   Confidentialité : ce programme n'écrit JAMAIS de titre, d'heure, de lieu
+   ni de lien dans le journal (les journaux d'un dépôt public sont visibles).
    ========================================================= */
 "use strict";
 const { initializeApp, cert } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const webpush = require("web-push");
 const { calculerEnvois } = require("./logique");
+const { occurrences, fusionner, planifier } = require("./calendriers");
 
 const exiger = (nom) => { const v = process.env[nom]; if (!v) { console.error(`Variable manquante : ${nom}`); process.exit(1); } return v; };
 
 const FOYER = process.env.FOYER_ID || "principal";
 const FUSEAU = process.env.FUSEAU || "America/Toronto";
 const HEURE_RESUME = Number(process.env.HEURE_RESUME || 7);
+const JOUR = 86400000;
+
+/* ---------- Calendriers Outlook (facultatif) ---------- */
+const CALENDRIERS = [["p1", process.env.CALENDRIER_PERSONNE_1, 1], ["p2", process.env.CALENDRIER_PERSONNE_2, 2]]
+  .map(([id, url, numero]) => [id, String(url || "").trim().replace(/^webcal:\/\//i, "https://"), numero])
+  .filter(([, url]) => url);
+const INTERVALLE_SYNC = Math.max(10, Number(process.env.SYNC_OUTLOOK_MINUTES || 30)) * 60000;
+const RAPPEL_OUTLOOK = (() => {
+  const v = String(process.env.RAPPEL_OUTLOOK ?? "").trim();
+  if (!v) return 60;
+  if (/^(aucun|non|none)$/i.test(v)) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 60;
+})();
+
+async function lireCalendrier(url, numero) {
+  // Ne jamais afficher l'adresse ni le message d'erreur brut : ils peuvent contenir le lien secret.
+  let rep;
+  try {
+    rep = await fetch(url, { headers: { "User-Agent": "FAMILLE/1.0", Accept: "text/calendar, */*" }, redirect: "follow", signal: AbortSignal.timeout(30000) });
+  } catch (e) {
+    throw new Error(`calendrier de la personne ${numero} : ${e && e.name === "TimeoutError" ? "délai dépassé" : "connexion impossible ou lien invalide"}`);
+  }
+  if (!rep.ok) throw new Error(`calendrier de la personne ${numero} : le serveur a répondu ${rep.status}${rep.status === 404 ? " (publication annulée ou lien incorrect ?)" : ""}`);
+  const texte = await rep.text();
+  if (!/BEGIN:VCALENDAR/i.test(texte)) throw new Error(`calendrier de la personne ${numero} : ce n'est pas un lien ICS (utilisez le lien qui se termine par .ics)`);
+  return texte;
+}
+
+async function synchroOutlook(db, foyer, lister, maintenant) {
+  const fenetre = { debut: maintenant - 30 * JOUR, fin: maintenant + 120 * JOUR, fuseau: FUSEAU };
+  const parPersonne = [];
+  for (const [personneId, url, numero] of CALENDRIERS) {
+    const texte = await lireCalendrier(url, numero);
+    parPersonne.push({ personneId, occurrences: occurrences(texte, fenetre) });
+  }
+  const dateDebutFenetre = dateEtHeure(FUSEAU, fenetre.debut).date;
+  const existants = await lister(foyer.collection("rendezvous").where("date", ">=", dateDebutFenetre));
+  const voulus = fusionner(parPersonne);
+  const { ecritures, suppressions } = planifier({ voulus, existants, maintenant, rappelMin: RAPPEL_OUTLOOK, dateDebutFenetre });
+  const ops = [...ecritures.map((e) => ["ecrire", e]), ...suppressions.map((id) => ["supprimer", id])];
+  for (let i = 0; i < ops.length; i += 400) {
+    const lot = db.batch();
+    for (const [type, x] of ops.slice(i, i + 400)) {
+      const ref = foyer.collection("rendezvous").doc(type === "ecrire" ? x.id : x);
+      if (type === "ecrire") lot.set(ref, x.data, { merge: x.fusion }); else lot.delete(ref);
+    }
+    await lot.commit();
+  }
+  await foyer.collection("reglages").doc("general").set({ dernierSyncOutlook: maintenant }, { merge: true });
+  console.log(`Outlook : ${CALENDRIERS.length} calendrier(s), ${voulus.size} rendez-vous, ${ecritures.length} ajouté(s) ou modifié(s), ${suppressions.length} retiré(s).`);
+}
 
 function dateEtHeure(fuseau, ms) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
@@ -44,9 +103,17 @@ async function principal() {
   const reglages = reglagesDoc.exists ? reglagesDoc.data() : {};
   const resumeDu = heureLocale >= HEURE_RESUME && reglages.dernierResume !== dateLocale;
 
+  // Calendriers Outlook : lus au plus toutes les 30 minutes (ou tout de suite si lancé à la main)
+  const forcer = process.env.GITHUB_EVENT_NAME === "workflow_dispatch";
+  if (CALENDRIERS.length && (forcer || !reglages.dernierSyncOutlook || maintenant - reglages.dernierSyncOutlook >= INTERVALLE_SYNC - 60000)) {
+    try { await synchroOutlook(db, foyer, lister, maintenant); }
+    catch (e) { console.warn(`Outlook : synchronisation reportée — ${e.message}`); }
+  }
+
   // Lectures limitées au strict nécessaire (forfait gratuit)
   const [rendezvous, tachesRappel, tachesAFaire, appareils, personnes, repasDoc] = await Promise.all([
-    lister(foyer.collection("rendezvous").where("rappelEnvoye", "==", false)),
+    // Seulement les rappels arrivés à échéance (dernières 6 h) : peu de lectures, même avec Outlook
+    lister(foyer.collection("rendezvous").where("rappelA", ">=", maintenant - 6 * 3600000).where("rappelA", "<=", maintenant)),
     lister(foyer.collection("taches").where("rappelEnvoye", "==", false)),
     resumeDu ? lister(foyer.collection("taches").where("statut", "==", "a_faire")) : Promise.resolve([]),
     lister(foyer.collection("appareils")),

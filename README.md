@@ -20,6 +20,7 @@ Application privée pour deux personnes : **tableau de bord du jour, épicerie, 
 12. [Ajouter un utilisateur plus tard](#12-ajouter-un-utilisateur-plus-tard)
 13. [Limites connues](#13-limites-connues)
 14. [Tests](#14-tests)
+15. [Calendriers Outlook (facultatif)](#15-calendriers-outlook-facultatif)
 
 ---
 
@@ -222,6 +223,26 @@ Chaque type s'active ou se désactive dans ⚙️ Réglages, **téléphone par t
 
 ## 14. Tests
 
-- **Logique des rappels :** `cd notifier && node test-logique.js` (9 tests : rendez-vous, rappels de tâches, préférences, ciblage par personne, résumé du matin unique par jour).
+- **Calendriers Outlook :** `cd notifier && node test-calendriers.js` (14 tests : fuseaux d'Outlook, changement d'heure, récurrences hebdomadaires, mensuelles « 2e mardi », annuelles, exceptions, journées entières, fusion des deux calendriers, doublons).
+- **Logique des rappels :** `cd notifier && node test-logique.js` (10 tests : rendez-vous, rappels de tâches, préférences, ciblage par personne, résumé du matin unique par jour).
 - **Application :** testée en mode démo dans Chrome mobile (390 px) sur deux onglets simultanés : connexion et création du code, choix de la personne, épicerie (ajout, anti-doublons, catégories, achat, modification), tâches (création, rappel, retard, complétion, historique conservé après suppression), menu et recettes (photo, planification, import des ingrédients sans doublons), agenda (jour, semaine, mois, rappel), notes épinglées, tableau de bord, synchronisation entre onglets, changement de code, déconnexion, hors ligne et service worker. **36 vérifications réussies, aucune erreur JavaScript.**
 - **À vérifier une fois Firebase configuré :** la synchronisation réelle entre les deux téléphones et la réception des notifications (bouton de test + « Run workflow »).
+
+## 15. Calendriers Outlook (facultatif)
+
+Les rendez-vous de vos calendriers Outlook **personnels** (Outlook.com, Hotmail) s'affichent dans l'agenda et sur l'accueil de FAMILLE, avec l'étiquette **Outlook**. C'est en **lecture seule** : on les modifie dans Outlook.
+
+**Fonctionnement**
+- Le programme des rappels lit les calendriers environ **toutes les 30 minutes** (période : 30 jours en arrière, 4 mois en avant). Microsoft peut aussi prendre un certain temps à mettre à jour un calendrier publié.
+- Un même rendez-vous présent dans les deux calendriers (même invitation, ou même titre, date et heure) s'affiche **une seule fois**, avec « Les deux ».
+- Un rendez-vous Outlook identique à un rendez-vous déjà entré dans FAMILLE est caché, et ne donne pas de deuxième rappel.
+- Rappel : **1 heure avant** par défaut, envoyé seulement à la personne concernée (ou aux deux). Aucun rappel pour les événements d'une journée entière. Pour changer : variable GitHub `RAPPEL_OUTLOOK` (nombre de minutes, ou `aucun`).
+
+**Installation**
+1. Pour chaque personne, dans Outlook sur le Web : ⚙️ Paramètres → **Calendrier** → **Calendriers partagés** → section **Publier un calendrier** → choisir le calendrier et **« Peut afficher les titres et les lieux »** → **Publier**. Copiez le lien **ICS** (pas le lien HTML).
+2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** :
+   - `CALENDRIER_PERSONNE_1` : le lien ICS de la personne 1 (celle qui s'appelait « Personne 1 » au départ)
+   - `CALENDRIER_PERSONNE_2` : le lien ICS de la personne 2
+3. Onglet **Actions** → « Rappels FAMILLE » → **Run workflow** : la synchronisation se fait immédiatement. Le journal indique seulement des nombres (« Outlook : 2 calendrier(s), 14 rendez-vous… »), **jamais** de titre ni de lien.
+
+**Confidentialité :** quiconque possède un lien ICS peut lire le calendrier ; ne le mettez que dans les Secrets GitHub. Pour couper l'accès, annulez la publication dans Outlook (le lien cesse de fonctionner) et supprimez le secret.

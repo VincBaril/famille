@@ -6,7 +6,7 @@ import { icone } from "../icones.js";
 import { esc, aujourdhui, ajouterJours, jourSemaine, dateLongue, relatif, heure, dateCourte } from "../utils.js";
 import { repasDu, recette, ingredientsDuRepas, ouvrirFormRepas } from "./menu.js";
 import { ligneTache, basculerTache, ouvrirFormTache, trierTaches } from "./taches.js";
-import { prochainsRdv, ouvrirFormRdv } from "./agenda.js";
+import { prochainsRdv, ouvrirFormRdv, heureRdv } from "./agenda.js";
 import { articlesAAcheter, ouvrirImportIngredients } from "./epicerie.js";
 import { notesTriees, ouvrirFormNote } from "./notes.js";
 
@@ -73,10 +73,10 @@ export const vue = {
       <div class="carte-entete"><div class="icone-ronde">${icone("agenda")}</div><h3>Prochains rendez-vous</h3>
         <a class="lien" href="#/agenda">Agenda</a></div>
       ${rdvs.length ? rdvs.map((x) => `<div class="rdv-mini" data-ouvrir-rdv="${x.id}" role="button" tabindex="0">
-          <div class="quand"><b>${heure(x.heureDebut)}</b><small>${esc(x.date === auj ? "aujourd'hui" : x.date === demain ? "demain" : dateCourte(x.date))}</small></div>
+          <div class="quand"><b>${heureRdv(x)}</b><small>${esc(x.date === auj ? "aujourd'hui" : x.date === demain ? "demain" : dateCourte(x.date))}</small></div>
           <div><div style="font-weight:700">${x.important ? `<span style="color:var(--ambre)">★</span> ` : ""}${esc(x.titre)}</div>
             ${x.description ? `<div class="petit muet">${esc(x.description)}</div>` : ""}
-            <div class="petit muet">${esc(nomResponsable(x.personne))}${x.rappel !== null && x.rappel !== undefined ? ` · ${icone("cloche")}` : ""}</div></div>
+            <div class="petit muet">${esc(nomResponsable(x.personne))}${x.source === "outlook" ? " · Outlook" : ""}${x.rappel !== null && x.rappel !== undefined ? ` · ${icone("cloche")}` : ""}</div></div>
         </div>`).join("") : `<p class="vide">Aucun rendez-vous à venir.</p>`}
       ${importants.length ? `<div class="important"><b>${icone("etoile")} À ne pas oublier</b><ul>${importants.map((t) => `<li>${t}</li>`).join("")}</ul></div>` : ""}
     </section>`;

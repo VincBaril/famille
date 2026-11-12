@@ -41,6 +41,8 @@ function calculerEnvois({ maintenant, dateLocale, demainLocal, heureLocale, heur
   // 1) Rendez-vous
   for (const r of rendezvous) {
     if (r.rappelEnvoye) continue;
+    // Rendez-vous Outlook en double d'un rendez-vous FAMILLE : un seul rappel
+    if (r.masque) { majs.push({ col: "rendezvous", id: r.id, data: { rappelEnvoye: true } }); continue; }
     if (!r.rappelA) { majs.push({ col: "rendezvous", id: r.id, data: { rappelEnvoye: true } }); continue; }
     if (r.rappelA > maintenant) continue;
     if ((r.debutA || 0) > maintenant - RETARD_MAX_RDV) {
